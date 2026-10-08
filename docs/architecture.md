@@ -3,20 +3,20 @@
 ## Goal
 
 Score microloan applications in a way that is **explainable** to a credit officer and
-**tamper-evident** to an auditor, without leaking applicant data onto a public ledger.
+**tamper-evident** to an auditor, without putting applicant data on a public ledger.
 
 ## Components
 
-| Layer | Module | Responsibility |
+| Layer | Module | What it does |
 |---|---|---|
-| ML | `app/ml` | Feature contract, synthetic data, XGBoost pipeline, SHAP explanations, versioned artifact store |
-| Chain | `app/chain` | Canonical payload + `keccak256` digest, contract compilation (solc-js), anchor clients |
-| Persistence | `app/db` | SQLAlchemy `Decision` model and session management |
-| Orchestration | `app/service.py` | `ScoringService`: score → persist → anchor → verify |
+| ML | `app/ml` | Feature list, synthetic data, XGBoost pipeline, SHAP reasons, versioned model store |
+| Chain | `app/chain` | Decision payload and `keccak256` digest, contract compile (solc-js), anchor clients |
+| Persistence | `app/db` | SQLAlchemy `Decision` model and session |
+| Flow | `app/service.py` | `ScoringService`: score -> store -> anchor -> verify |
 | API | `app/main.py` | FastAPI endpoints |
 | Contract | `contracts/` | `DecisionRegistry.sol`, solc-js compiler, Foundry tests |
 
-## Decision lifecycle
+## The decision flow
 
 ```mermaid
 sequenceDiagram
@@ -32,7 +32,7 @@ sequenceDiagram
     S->>M: predict_proba + explain
     M-->>S: probability, reasons
     S->>S: band/action = policy(score)
-    S->>S: digest = keccak256(canonical payload)
+    S->>S: digest = keccak256(payload)
     S->>CH: is_anchored(digest)?
     alt not anchored
         S->>CH: anchor(digest)
@@ -45,12 +45,12 @@ sequenceDiagram
     API-->>C: 200 ScoreResponse
 ```
 
-## The canonical payload
+## The decision payload
 
-The digest binds everything needed to reproduce a decision:
+The digest covers everything needed to rebuild a decision:
 
 ```
-payload = json(sort_keys, no-whitespace) {
+payload = json(sort_keys, no whitespace) {
     "decision":      "approve" | "review" | "decline",
     "features":      { ...the exact scored features... },
     "model_version": "m_<hash>",
@@ -59,59 +59,59 @@ payload = json(sort_keys, no-whitespace) {
 digest = keccak256(payload)       # 32 bytes
 ```
 
-Canonical serialisation (sorted keys, no insignificant whitespace) guarantees the same
-decision always yields the same digest and any change yields a different one. See
+The serialisation is fixed (sorted keys, no extra whitespace), so the same decision
+always gives the same digest, and any change gives a different one. See
 [ADR-0003](adr/0003-canonical-serialization.md).
 
 ## The contract
 
-`DecisionRegistry` is deliberately minimal: a role-gated, append-only registry mapping
-`bytes32` digest → `{submitter, timestamp, blockNumber}`.
+`DecisionRegistry` is small on purpose: a write-only registry, with roles, that maps a
+`bytes32` digest to `{submitter, timestamp, blockNumber}`.
 
-* `anchor(digest)` — only an authorised scorer; reverts on a zero digest or a
-  re-anchor (`AlreadyAnchored`).
-* `recordOf(digest)` / `isAnchored(digest)` — public reads used by verification.
-* `setScorer` / `transferOwnership` — owner-gated access control.
+* `anchor(digest)` — only an allowed scorer; it reverts on a zero digest or on a second
+  anchor of the same digest (`AlreadyAnchored`).
+* `recordOf(digest)` / `isAnchored(digest)` — public reads used to verify.
+* `setScorer` / `transferOwnership` — owner-only access control.
 
 It never receives applicant data ([ADR-0002](adr/0002-anchor-digest-not-data.md)).
 
-## Dependency inversion for the chain
+## The chain interface
 
-`ScoringService` depends on the `AnchorClient` **protocol**, not on web3:
+`ScoringService` depends on the `AnchorClient` interface, not on web3 directly:
 
 ```
 AnchorClient (Protocol)
-├── Web3AnchorClient      # real contract, works on Anvil or in-memory PyEVM
-└── InMemoryAnchorClient  # dict-backed fake, mirrors contract semantics
+├── Web3AnchorClient      # real contract; works on Anvil or in-memory PyEVM
+└── InMemoryAnchorClient  # dict-based fake; same behaviour as the contract
 ```
 
-This is what makes the system testable without any blockchain and lets anchoring be
-switched off entirely (`CT_CHAIN_ENABLED=false`) for offline scoring.
+This is what lets the system be tested with no blockchain, and lets anchoring be turned
+off (`CT_CHAIN_ENABLED=false`) for offline scoring.
 
-## Verification & tamper evidence
+## Verify and tamper evidence
 
 `GET /decisions/{id}/verify`:
 
-1. Recompute the digest from the **stored** record.
-2. Compare it to the stored digest → `digest_matches`.
-3. Look the digest up on-chain → `on_chain.anchored`.
+1. Rebuild the digest from the **stored** record.
+2. Compare it to the stored digest -> `digest_matches`.
+3. Look the digest up on the chain -> `on_chain.anchored`.
 
-| Outcome | Meaning |
+| Result | Meaning |
 |---|---|
-| `verified` | digest matches and is anchored on-chain |
-| `digest_mismatch` | a stored field was altered after the decision was made |
+| `verified` | digest matches and is on the chain |
+| `digest_mismatch` | a stored field was changed after the decision |
 | `not_anchored` | digest matches but was never anchored |
-| `chain_disabled` | anchoring was off when scored |
+| `chain_disabled` | anchoring was off when the decision was scored |
 
 ## Configuration
 
-All configuration is environment-driven (`CT_` prefix, see `.env.example`): database
-URL, model directory and pinned version, chain enablement, RPC URL, contract address,
-signing key, and the risk-band thresholds.
+All settings come from environment variables (`CT_` prefix, see `.env.example`):
+database URL, model directory and pinned version, chain on/off, RPC URL, contract
+address, signing key, and the risk-band thresholds.
 
-## Deployment shape
+## Deployment
 
-`docker-compose.yml` runs PostgreSQL, Anvil and the API. The API entrypoint waits for
-Anvil, trains a model if none exists, deploys the registry if no address is configured,
-then serves. In production the RPC URL and a funded signing key would point at the
-target network and the model artifact would be built in CI and shipped read-only.
+`docker-compose.yml` runs PostgreSQL, Anvil, and the API. The API entrypoint waits for
+Anvil, trains a model if there is none, deploys the contract if no address is set, then
+serves. In production, the RPC URL and a funded signing key would point at the real
+network, and the model would be built in CI and shipped read-only.

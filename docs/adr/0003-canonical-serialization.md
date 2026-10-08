@@ -20,6 +20,6 @@ avoid floating-point representation drift.
 
 * **Positive:** deterministic, language-agnostic digests; any field change is
   detectable; an independent re-implementation can reproduce the digest.
-* **Negative:** the payload schema is now a compatibility surface — changing it changes
+* **Negative:** the payload shape is now part of the contract: changing it changes
   all future digests, so it is versioned implicitly through `model_version` and treated
   as stable.
