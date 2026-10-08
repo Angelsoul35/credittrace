@@ -1,0 +1,57 @@
+[project]
+name = "credittrace"
+version = "1.0.0"
+description = "Explainable credit-risk scoring with tamper-evident on-chain decision anchoring."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Angelo David Padilla Romero" }]
+
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.34",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "sqlalchemy>=2.0",
+  "xgboost>=2.1",
+  "scikit-learn>=1.5",
+  "shap>=0.46",
+  "pandas>=2.2",
+  "numpy>=2.1",
+  "joblib>=1.4",
+  "web3>=7.6",
+  "python-multipart>=0.0.12",
+  "psycopg[binary]>=3.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "httpx>=0.28",
+  "eth-tester>=0.12",
+  "py-evm>=0.10",
+  "py-solc-x>=2.0",
+  "ruff>=0.8",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+testpaths = ["tests"]
+markers = ["chain: tests that deploy the contract to an in-memory EVM"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+# B008 is the idiomatic FastAPI dependency-injection pattern (Depends in defaults).
+ignore = ["B008"]
