@@ -71,8 +71,7 @@ def main() -> None:
         db.commit()
     tampered = service.verify(result["decision_id"])
     print(
-        f"   after tamper: digest_matches={tampered['digest_matches']}  "
-        f"status={tampered['status']}"
+        f"   after tamper: digest_matches={tampered['digest_matches']}  status={tampered['status']}"
     )
     _rule()
     assert verdict["status"] == "verified"

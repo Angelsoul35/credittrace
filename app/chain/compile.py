@@ -27,9 +27,7 @@ def compile_contract() -> Path:
     if npm is None or node is None:
         raise RuntimeError("Node.js and npm are required to compile the contract.")
     if not (CONTRACTS_DIR / "node_modules" / "solc").exists():
-        subprocess.run(
-            [npm, "install", "--no-audit", "--no-fund"], cwd=CONTRACTS_DIR, check=True
-        )
+        subprocess.run([npm, "install", "--no-audit", "--no-fund"], cwd=CONTRACTS_DIR, check=True)
     subprocess.run([node, "compile.js"], cwd=CONTRACTS_DIR, check=True)
     return ARTIFACT_PATH
 

@@ -53,9 +53,7 @@ def make_dataset(n: int = 20_000, seed: int = 42) -> pd.DataFrame:
 
     loan_term_months = rng.choice([6, 12, 18, 24, 36, 48, 60], size=n)
     # Loan amount scales with income but with heavy spread.
-    loan_amount = np.clip(
-        monthly_income * rng.uniform(0.5, 8.0, size=n), 500_000, 300_000_000
-    )
+    loan_amount = np.clip(monthly_income * rng.uniform(0.5, 8.0, size=n), 500_000, 300_000_000)
 
     num_existing_loans = rng.poisson(lam=1.1, size=n)
     num_late_payments_12m = rng.poisson(lam=0.4, size=n)

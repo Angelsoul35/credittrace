@@ -228,9 +228,7 @@ class CreditRiskModel:
         for name, value in zip(self._transformed_names or [], contributions, strict=True):
             # ColumnTransformer prefixes names as "num__age" / "cat__region_caribe".
             body = name.split("__", 1)[1] if "__" in name else name
-            parent = next(
-                (f for f in CATEGORICAL_FEATURES if body.startswith(f + "_")), None
-            )
+            parent = next((f for f in CATEGORICAL_FEATURES if body.startswith(f + "_")), None)
             key = parent if parent is not None else body
             if key in aggregated:
                 aggregated[key] += float(value)
@@ -273,12 +271,8 @@ def latest_version(model_dir: str | Path) -> str | None:
     base = Path(model_dir)
     if not base.exists():
         return None
-    candidates = [
-        p for p in base.iterdir() if p.is_dir() and (p / _METADATA_FILE).exists()
-    ]
+    candidates = [p for p in base.iterdir() if p.is_dir() and (p / _METADATA_FILE).exists()]
     if not candidates:
         return None
-    candidates.sort(
-        key=lambda p: json.loads((p / _METADATA_FILE).read_text())["trained_at"]
-    )
+    candidates.sort(key=lambda p: json.loads((p / _METADATA_FILE).read_text())["trained_at"])
     return candidates[-1].name

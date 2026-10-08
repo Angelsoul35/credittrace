@@ -31,17 +31,13 @@ def model_info(service: ScoringService = Depends(get_service)) -> dict:
 
 
 @app.post("/score", response_model=ScoreResponse, tags=["scoring"])
-def score(
-    applicant: ApplicantIn, service: ScoringService = Depends(get_service)
-) -> ScoreResponse:
+def score(applicant: ApplicantIn, service: ScoringService = Depends(get_service)) -> ScoreResponse:
     result = service.score(applicant.model_dump())
     return ScoreResponse.model_validate(result)
 
 
 @app.get("/decisions/{decision_id}", tags=["scoring"])
-def get_decision(
-    decision_id: str, service: ScoringService = Depends(get_service)
-) -> dict:
+def get_decision(decision_id: str, service: ScoringService = Depends(get_service)) -> dict:
     record = service.get(decision_id)
     if record is None:
         raise HTTPException(status_code=404, detail="decision not found")
