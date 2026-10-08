@@ -79,10 +79,10 @@ It never receives applicant data ([ADR-0002](adr/0002-anchor-digest-not-data.md)
 
 `ScoringService` depends on the `AnchorClient` interface, not on web3 directly:
 
-```
-AnchorClient (Protocol)
-├── Web3AnchorClient      # real contract; works on Anvil or in-memory PyEVM
-└── InMemoryAnchorClient  # dict-based fake; same behaviour as the contract
+```mermaid
+flowchart TD
+    A["AnchorClient (Protocol)"] --> B["Web3AnchorClient<br/>real contract — Anvil or in-memory PyEVM"]
+    A --> C["InMemoryAnchorClient<br/>dict-based fake, same behaviour as the contract"]
 ```
 
 This is what lets the system be tested with no blockchain, and lets anchoring be turned

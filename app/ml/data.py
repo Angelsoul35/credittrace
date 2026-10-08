@@ -2,8 +2,10 @@
 
 The dataset is fully synthetic and deterministic: no real person, client or
 institution is involved. Defaults are drawn from a latent logistic model so
-the features carry genuine, learnable signal (an honest model should reach
-ROC-AUC ~0.85), while staying noisy enough that the problem is not trivial.
+the features carry genuine, learnable signal (the conservative default model
+reaches ROC-AUC ~0.73 on a held-out split), while staying noisy enough that the
+problem is not trivial — the Bayes-optimal ceiling is well below 1.0 by design,
+so a model scoring ~1.0 here would signal a leak or overfitting, not success.
 
 The generative process is intentionally documented because the whole point of
 the project is explainability: we know the ground-truth drivers of risk and
