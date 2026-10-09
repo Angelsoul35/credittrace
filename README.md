@@ -8,9 +8,12 @@ smart contract. Later, anyone who has the original decision can prove — withou
 the lender's database — that the decision existed at a given block and has not changed
 since.
 
-> All data is **synthetic**. No real person, client, or company is involved. The
-> blockchain runs locally (Anvil or an in-memory EVM). Nothing is sent to a public
-> network and no token has any value.
+> The main pipeline runs on a **documented synthetic generator** — chosen on purpose so
+> the ground-truth risk drivers are known and SHAP can be checked against them (no real
+> person or company is involved). The approach is **also validated on real data**: the
+> public UCI *German Credit* dataset (`python -m app.ml.benchmark`). The blockchain runs
+> locally (Anvil or an in-memory EVM); nothing is sent to a public network and no token
+> has any value.
 
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](.github/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](pyproject.toml)
@@ -129,7 +132,8 @@ curl -s -X POST http://localhost:8000/score -H 'content-type: application/json' 
 
 ```
 app/
-  ml/        features, synthetic data, XGBoost model, SHAP explanations
+  ml/        features, synthetic data, real_data (UCI German Credit), XGBoost model,
+             SHAP explanations, benchmark (real-world validation)
   chain/     decision digest, solc-js compile, anchor clients (web3 + in-memory)
   db/        SQLAlchemy models and session
   service.py the flow: score -> store -> anchor -> verify
@@ -150,8 +154,10 @@ Two choices are worth noting:
 
 ## Testing and quality
 
-* **27 tests** cover the digest, the model, the contract (deployed to an in-memory EVM),
-  the service, and the API. CI requires at least 80% coverage.
+* **30 tests** cover the digest, the model, the contract (deployed to an in-memory EVM),
+  the service, the API, and the **real-data benchmark** (the German Credit loader plus a
+  well-fit check that is mutation-proven: the overfit config fails on the train/test gap
+  and shuffled labels fail on cross-validated AUC). CI requires at least 80% coverage.
 * The **Solidity** contract is tested twice: by the Python suite against the compiled
   bytecode, and by a **Foundry** suite (`forge test`, with a fuzz test) in CI.
 * **CI** runs lint (`ruff`), the contract compile plus a check that the committed
@@ -172,6 +178,33 @@ we can check that the SHAP reasons match them. Each trained model gets a content
 version (`m_<hash>` over the hyper-parameters and a fingerprint of the data) that goes
 into every decision digest, so a decision always names the exact model that made it.
 Reported metrics: ROC-AUC, KS, and Brier score.
+
+## Real-world benchmark (UCI German Credit)
+
+The synthetic generator validates *explainability*; the real **UCI Statlog German Credit**
+dataset (1,000 applicants, vendored under [`datasets/`](datasets/) with full provenance)
+validates that the same architecture is **correctly fit on real data** — strong on unseen
+folds and with its training score close to its test score. Run `python -m app.ml.benchmark`:
+
+```
+model                  CV ROC-AUC         train    test     gap
+XGBoost (well-fit)     0.786 +/- 0.026     0.856   0.784   0.072
+Logistic regression    0.786 +/- 0.020     0.832   0.804   0.028
+
+top SHAP risk drivers: status (checking account), duration, savings,
+                       credit_history, purpose, amount
+verdict: well-fit — strong cross-validated AUC with train and test scores close
+```
+
+Two things are deliberate and worth noting:
+
+* **The score is ~0.78, not 1.0.** German Credit tops out around 0.78–0.80 ROC-AUC in the
+  literature; a model reporting ~1.0 here would signal a leak. The chosen XGBoost config is
+  **not** a capacity cut — a deeper, unregularised model scores *lower* in cross-validation
+  (it memorises: train AUC 1.0, CV 0.77), so the regularised config generalises better.
+* **SHAP recovers the known drivers.** Checking-account status is the dominant predictor in
+  the German Credit literature, and it comes out on top here — the explainability holds on
+  real applicants, not only on the synthetic set.
 
 ## For study
 
